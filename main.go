@@ -13,9 +13,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/joho/godotenv"
-
 	"github.com/bootdotdev/learn-cicd-starter/internal/database"
-
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -86,7 +84,7 @@ func main() {
 	srv := &http.Server{
 		Addr:              ":" + port,
 		Handler:           router,
-		ReadHeaderTimeout: time.Second * 5, // use seconds or it will default to nanoseconds
+		ReadHeaderTimeout: time.Second * 5, // Prevents Slowloris attack
 	}
 
 	log.Printf("Serving on port: %s\n", port)
