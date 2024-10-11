@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi"
-	"github.com/joho/godotenv"
 	"github.com/bootdotdev/learn-cicd-starter/internal/database"
+	"github.com/go-chi/chi"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 type apiConfig struct {
