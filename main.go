@@ -25,9 +25,9 @@ type apiConfig struct {
 var staticFiles embed.FS
 
 func main() {
-  	err := godotenv.Load(".env")
-   	if err != nil {
-    	   	log.Printf("Warning: Error loading .env file: %v", err)
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Printf("Warning: Error loading .env file: %v", err)
 		log.Println("Continuing without .env file...")
 	}
 	port := os.Getenv("PORT")
