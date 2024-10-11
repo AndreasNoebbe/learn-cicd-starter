@@ -6,15 +6,15 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
-
-	"github.com/go-chi/chi"
-	"github.com/go-chi/cors"
-	"github.com/joho/godotenv"
+	"strings"
+	"time"
 
 	"github.com/bootdotdev/learn-cicd-starter/internal/database"
-
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
+	"github.com/go-chi/chi"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 type apiConfig struct {
@@ -27,9 +27,9 @@ var staticFiles embed.FS
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Printf("warning: assuming default configuration. .env unreadable: %v", err)
+		log.Printf("Warning: Error loading .env file: %v", err)
+		log.Println("Continuing without .env file...")
 	}
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		log.Fatal("PORT environment variable is not set")
@@ -37,14 +37,16 @@ func main() {
 
 	apiCfg := apiConfig{}
 
-	// https://github.com/libsql/libsql-client-go/#open-a-connection-to-sqld
-	// libsql://[your-database].turso.io?authToken=[your-auth-token]
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Println("DATABASE_URL environment variable is not set")
 		log.Println("Running without CRUD endpoints")
 	} else {
-		db, err := sql.Open("libsql", dbURL)
+		parsedURL, err := addParseTimeParam(dbURL)
+		if err != nil {
+			log.Fatal(err)
+		}
+		db, err := sql.Open("mysql", parsedURL)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -54,15 +56,6 @@ func main() {
 	}
 
 	router := chi.NewRouter()
-
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://*", "http://*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300,
-	}))
 
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		f, err := staticFiles.Open("static/index.html")
@@ -89,10 +82,28 @@ func main() {
 
 	router.Mount("/v1", v1Router)
 	srv := &http.Server{
-		Addr:    ":" + port,
-		Handler: router,
+		Addr:              ":" + port,
+		Handler:           router,
+		ReadHeaderTimeout: time.Second * 5, // Prevents Slowloris attack
 	}
 
 	log.Printf("Serving on port: %s\n", port)
 	log.Fatal(srv.ListenAndServe())
+}
+
+func addParseTimeParam(input string) (string, error) {
+	const dummyScheme = "http://"
+	if !strings.Contains(input, dummyScheme) {
+		input = "http://" + input
+	}
+	u, err := url.Parse(input)
+	if err != nil {
+		return "", err
+	}
+	q := u.Query()
+	q.Add("parseTime", "true")
+	u.RawQuery = q.Encode()
+	returnUrl := u.String()
+	returnUrl = strings.TrimPrefix(returnUrl, dummyScheme)
+	return returnUrl, nil
 }
